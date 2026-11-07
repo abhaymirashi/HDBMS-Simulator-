@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDBMS Simulator</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        h2 { color: #0052cc; text-align: center; margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 20px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-direction: column; }
+        select, input { padding: 12px; border: 2px solid #e1e4e8; border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.3s; }
+        select:focus, input:focus { border-color: #0052cc; }
+        .btn-group { display: flex; gap: 10px; }
+        button { flex: 1; background-color: #0052cc; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+        button:active { background-color: #003d99; }
+        button.reset-btn { background-color: #e53e3e; }
+        button.reset-btn:active { background-color: #c53030; }
+        .tree-container { background: #ffffff; margin-top: 15px; padding: 20px; border: 2px dashed #0052cc; border-radius: 6px; overflow-x: auto; }
+        ul.tree-list { list-style-type: none; padding-left: 20px; margin: 0; }
+        ul.tree-list li { margin: 10px 0; position: relative; padding-left: 15px; }
+        ul.tree-list li::before { content: ""; position: absolute; top: -10px; left: -10px; border-left: 2px solid #0052cc; height: 100%; }
+        ul.tree-list li::after { content: ""; position: absolute; top: 15px; left: -10px; border-top: 2px solid #0052cc; width: 25px; }
+        ul.tree-list li:last-child::before { height: 25px; }
+        .root-node > li::before, .root-node > li::after { display: none; }
+        .root-node > li { padding-left: 0; }
+        .node-box { display: inline-block; background: #e9f2ff; color: #0052cc; padding: 8px 15px; border-radius: 6px; border: 1px solid #b3d4ff; font-weight: bold; font-size: 14px; position: relative; z-index: 1; }
+        .footer { text-align: center; margin-top: 40px; font-size: 14px; color: #777; font-weight: bold; line-height: 1.6; border-top: 1px solid #eee; padding-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🌳 HDBMS Simulator</h2>
+    <p class="subtitle">Hierarchical Database Management System<br>Visualize 1:N Parent-Child data relationships.</p>
+    
+    <div class="controls">
+        <select id="parentSelect">
+            <!-- Dropdown options populated by JavaScript -->
+        </select>
+        <input type="text" id="nodeName" placeholder="Enter new child record name... (e.g., Finance)">
+        
+        <div class="btn-group">
+            <button onclick="addNode()">Add Record</button>
+            <button onclick="resetTree()" class="reset-btn">Reset</button>
+        </div>
+    </div>
+
+    <div class="tree-container" id="treeView">
+        <!-- Tree renders here -->
+    </div>
+
+    <div class="footer">
+        Developed by Abhay Mirashi<br>
+        All rights reserved with admin
+    </div>
+</div>
+
+<script>
+    // Initial Database State
+    let treeData = {
+        id: "root",
+        name: "Organization (Root)",
+        children: [
+            { id: "dept1", name: "IT Department", children: [{ id: "emp1", name: "Alice (Developer)", children: [] }] },
+            { id: "dept2", name: "HR Department", children: [] }
+        ]
+    };
+    let nodeCounter = 0;
+
+    // Function to render the tree visually
+    function renderTree(node) {
+        let html = `<li><div class="node-box">${node.name}</div>`;
+        if (node.children && node.children.length > 0) {
+            html += `<ul class="tree-list">`;
+            node.children.forEach(child => {
+                html += renderTree(child);
+            });
+            html += `</ul>`;
+        }
+        html += `</li>`;
+        return html;
+    }
+
+    // Function to update the screen
+    function updateView() {
+        document.getElementById('treeView').innerHTML = `<ul class="tree-list root-node">${renderTree(treeData)}</ul>`;
+        updateDropdown();
+    }
+
+    // Function to update the parent selection dropdown
+    function updateDropdown() {
+        const select = document.getElementById('parentSelect');
+        select.innerHTML = "";
+        let flatNodes = [];
+        
+        function flatten(node, depthString = "") {
+            flatNodes.push({id: node.id, name: depthString + node.name});
+            if (node.children) {
+                node.children.forEach(child => flatten(child, depthString + "- "));
+            }
+        }
+        flatten(treeData);
+        
+        flatNodes.forEach(n => {
+            let opt = document.createElement("option");
+            opt.value = n.id;
+            opt.textContent = `Insert under: ${n.name}`;
+            select.appendChild(opt);
+        });
+    }
+
+    // Function to add a new record
+    function addNode() {
+        const parentId = document.getElementById('parentSelect').value;
+        const nodeNameInput = document.getElementById('nodeName');
+        const nodeName = nodeNameInput.value.trim();
+        
+        if (!nodeName) { 
+            alert("Please enter a record name!"); 
+            return; 
+        }
+
+        function insertInto(node) {
+            if (node.id === parentId) {
+                node.children.push({ id: "node_" + (++nodeCounter), name: nodeName, children: [] });
+                return true;
+            }
+            if (node.children) {
+                for (let child of node.children) {
+                    if (insertInto(child)) return true;
+                }
+            }
+            return false;
+        }
+        
+        insertInto(treeData);
+        nodeNameInput.value = "";
+        updateView();
+    }
+
+    // Function to wipe the database clean
+    function resetTree() {
+        treeData = {
+            id: "root",
+            name: "Database Root",
+            children: []
+        };
+        updateView();
+    }
+
+    // Initialize the simulator on load
+    updateView();
+</script>
+</body>
+</html>
